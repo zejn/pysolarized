@@ -116,7 +116,7 @@ class Solr(object):
             # format which isn't possible with python dictionaries
             for lang in language_batches:
                 self._send_solr_command(self.endpoints[lang], language_batches[lang])
-                self._add_batch = []
+            self._add_batch = []
 
     def deleteAll(self):
         """
