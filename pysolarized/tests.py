@@ -78,6 +78,28 @@ class TestSolrUpdates(unittest.TestCase):
         self.assertEqual({"add": {"doc": document1, "boost": 10.0}}, json.loads(self.req_commands[0]))
         self.assertEqual({"commit": {}}, json.loads(self.req_commands[1]))
 
+    def testAddFlushBatch(self):
+        url = "http://this.is.a.mock.url"
+        document1 = {u"name": u"Joe", u"surname": u"Satriani", u"booboo": 12}
+        document2 = {u"name": u"Joanna", u"surname": u"S šuuumnikiiiič!", u"booboo": 10}
+        document3 = {u"name": u"Lester", u"surname": u"Burnham", u"booboo": 7}
+
+        import pysolarized.solr
+        oldaddbatch = pysolarized.solr.SOLR_ADD_BATCH
+        pysolarized.solr.SOLR_ADD_BATCH = 1
+        solr = Solr({"en": url}, "en")
+        solr._send_solr_command = self._command_handler
+
+        solr.add(document1)
+        solr.add(document2)
+        solr.add(document3)
+        solr.commit()
+
+        self.assertEqual('{"add":{"doc": {"surname": "Satriani", "name": "Joe", "booboo": 12}},"add":{"doc": {"surname": "S \\u0161uuumnikiiii\\u010d!", "name": "Joanna", "booboo": 10}}}', self.req_commands[0])
+        self.assertEqual({'add': {'doc': document3}}, json.loads(self.req_commands[1]))
+        self.assertEqual({"commit": {}}, json.loads(self.req_commands[2]))
+
+        pysolarized.solr.SOLR_ADD_BATCH = oldaddbatch
 
 
 class testSolrQueries(unittest.TestCase):
