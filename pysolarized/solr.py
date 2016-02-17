@@ -1,3 +1,4 @@
+import datetime
 import json
 import logging
 from httpcache import CachingHTTPAdapter
@@ -5,9 +6,32 @@ import types
 import urlparse
 import itertools
 import requests
+import pytz
+
 
 SOLR_ADD_BATCH = 200 # Number of documents to send in batch when adding
 logger = logging.getLogger("pysolarized")
+
+
+def default_datetime(obj):
+    """
+    An ISO8601 JSON datetime encoder.
+
+    If datetime is naive, UTC is assumed, if it's timezone aware,
+    it is first converted to UTC.
+    """
+    if isinstance(obj, datetime.date):
+        # dates are always naive
+        return obj.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    if isinstance(obj, datetime.datetime):
+        if obj.tzinfo is None or obj.tzinfo.utcoffset(obj) is None:
+            # if datetime is naive, assume UTC
+            return obj.strftime("%Y-%m-%dT%H:%M:%SZ")
+        else:
+            return obj.astimezone(pytz.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    raise TypeError("Type not serializable")
 
 
 # Builds URL from base and path
@@ -108,7 +132,7 @@ class Solr(object):
             # Create command JSONs for each of language endpoints
             for lang in self.endpoints:
                 # Append documents with languages without endpoint to default endpoint
-                document_jsons = ["\"add\":" + json.dumps(data) for data in self._add_batch
+                document_jsons = ["\"add\":" + json.dumps(data, default=default_datetime) for data in self._add_batch
                                   if data['doc'].get("language", self.default_endpoint) == lang or (lang == self.default_endpoint and not self.endpoints.has_key(data['doc'].get("language")))]
                 command_json = "{" + ",".join(document_jsons) + "}"
                 language_batches[lang] = command_json
